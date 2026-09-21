@@ -12,11 +12,15 @@ def _add(client, amount, category, date):
     )
 
 
+def _get_summary_data(resp):
+    return resp.json()["responseObject"]["data"]
+
+
 def test_summary_empty_db(client):
     """Summary on empty DB returns all zeros and no insights."""
     resp = client.get("/summary", headers=API_KEY_HEADERS)
     assert resp.status_code == 200
-    data = resp.json()
+    data = _get_summary_data(resp)
     assert float(data["total_spend"]) == 0.0
     assert data["by_category"] == {}
     assert data["insights"] == []
@@ -33,7 +37,7 @@ def test_summary_total_spend(client):
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
     assert resp.status_code == 200
-    data = resp.json()
+    data = _get_summary_data(resp)
     assert float(data["total_spend"]) == 350.0
     assert float(data["by_category"]["Food"]) == 150.0
     assert float(data["by_category"]["Travel"]) == 200.0
@@ -46,7 +50,7 @@ def test_summary_mom_no_previous_month(client):
     _add(client, 500, "Food", today)
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
-    data = resp.json()
+    data = _get_summary_data(resp)
     assert data["month_over_month"]["change_percent"] is None
 
 
@@ -58,7 +62,7 @@ def test_summary_mom_increase(client):
     _add(client, 500, "Food", "2026-09-15")
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
-    mom = resp.json()["month_over_month"]
+    mom = _get_summary_data(resp)["month_over_month"]
     # 500-400=100, 100/400 * 100 = 25%
     assert abs(mom["change_percent"] - 25.0) < 0.1
 
@@ -69,7 +73,7 @@ def test_summary_mom_decrease(client):
     _add(client, 300, "Food", "2026-09-15")
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
-    mom = resp.json()["month_over_month"]
+    mom = _get_summary_data(resp)["month_over_month"]
     # (300-600)/600 * 100 = -50%
     assert abs(mom["change_percent"] - (-50.0)) < 0.1
 
@@ -80,7 +84,7 @@ def test_summary_insight_flagged_above_20_percent(client):
     _add(client, 130, "Food", "2026-09-15")  # +30%
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
-    insights = resp.json()["insights"]
+    insights = _get_summary_data(resp)["insights"]
     food_insight = next((i for i in insights if i["category"] == "Food"), None)
 
     assert food_insight is not None
@@ -94,7 +98,7 @@ def test_summary_insight_not_flagged_below_20_percent(client):
     _add(client, 115, "Food", "2026-09-15")  # +15%
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
-    insights = resp.json()["insights"]
+    insights = _get_summary_data(resp)["insights"]
     food_insight = next((i for i in insights if i["category"] == "Food"), None)
 
     assert food_insight is not None
@@ -106,7 +110,7 @@ def test_summary_new_category_flagged(client):
     _add(client, 200, "Travel", "2026-09-15")
 
     resp = client.get("/summary", headers=API_KEY_HEADERS)
-    insights = resp.json()["insights"]
+    insights = _get_summary_data(resp)["insights"]
     travel = next((i for i in insights if i["category"] == "Travel"), None)
 
     assert travel is not None

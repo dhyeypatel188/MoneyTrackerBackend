@@ -73,6 +73,7 @@ Protected endpoints require the header:
 |---|---|---|:---:|
 | `POST` | `/auth/register` | Register new user | No |
 | `POST` | `/auth/login` | Login with username & password | No |
+| `POST` | `/auth/logout` | Sign out / invalidate session | Optional / Bearer |
 | `GET` | `/auth/me` | Fetch authenticated user profile | Bearer Token |
 
 ### Expense Routes
@@ -96,3 +97,36 @@ Protected endpoints require the header:
 # From backend/ with venv activated
 pytest -v
 ```
+
+---
+
+## 🏗️ Project Structure & Architecture
+
+A modular 3-layer architecture was set up to maintain separation of concerns and clear folder boundaries:
+
+```text
+backend/
+├── app/
+│   ├── routers/       # HTTP request handlers & routing (/auth, /expenses, /summary)
+│   ├── services/      # Business logic (JWT/bcrypt auth, MoM calculations, spike detection)
+│   ├── dependencies.py# Reusable FastAPI dependencies (JWT Bearer authentication)
+│   ├── models.py      # SQLAlchemy ORM database models (User, Expense)
+│   ├── schemas.py     # Pydantic v2 validation contracts & response shapes
+│   ├── database.py    # Database connection & session management
+│   ├── config.py      # Environment configuration via pydantic-settings
+│   └── main.py        # App initialization, CORS, and automatic DB/user seeding
+├── tests/             # Pytest test suite with isolated test DB fixtures
+├── expenses.db        # SQLite database
+├── requirements.txt   # Pinned dependencies
+├── .env.example       # Safe template for environment variables
+└── .gitignore         # Ignored credentials, virtual environments, and caches
+```
+
+---
+
+AI Usage Note
+
+I utilized **Antigravity** (Google DeepMind) as an AI pair-programmer to scaffold initial boilerplate, route definitions, and test fixtures. I actively guided and structured the modular folder hierarchy (`routers/` vs `services/` vs `models/`)
+It did not call the sighout API so i add that 
+Test everthing before submitting
+Fix the API response structure

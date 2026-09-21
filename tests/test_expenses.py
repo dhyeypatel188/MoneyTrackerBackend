@@ -12,7 +12,7 @@ def test_create_expense_success(client):
         headers=API_KEY_HEADERS,
     )
     assert resp.status_code == 201
-    data = resp.json()
+    data = resp.json()["responseObject"]["data"]
     assert data["amount"] == "49.99"
     assert data["category"] == "Food"
     assert data["note"] == "Lunch"
@@ -29,7 +29,7 @@ def test_create_expense_defaults_to_today(client):
         headers=API_KEY_HEADERS,
     )
     assert resp.status_code == 201
-    assert resp.json()["date"] == date.today().isoformat()
+    assert resp.json()["responseObject"]["data"]["date"] == date.today().isoformat()
 
 
 def test_create_expense_negative_amount(client):
@@ -97,7 +97,7 @@ def test_list_expenses_empty(client):
     """GET /expenses on empty DB returns empty list."""
     resp = client.get("/expenses", headers=API_KEY_HEADERS)
     assert resp.status_code == 200
-    assert resp.json() == []
+    assert resp.json()["responseObject"]["data"] == []
 
 
 def test_list_expenses_returns_all(client):
@@ -106,7 +106,7 @@ def test_list_expenses_returns_all(client):
         client.post("/expenses", json={"amount": "10.00", "category": cat}, headers=API_KEY_HEADERS)
     resp = client.get("/expenses", headers=API_KEY_HEADERS)
     assert resp.status_code == 200
-    assert len(resp.json()) == 3
+    assert len(resp.json()["responseObject"]["data"]) == 3
 
 
 def test_list_expenses_filter_by_category(client):
@@ -116,7 +116,7 @@ def test_list_expenses_filter_by_category(client):
 
     resp = client.get("/expenses?category=food", headers=API_KEY_HEADERS)
     assert resp.status_code == 200
-    results = resp.json()
+    results = resp.json()["responseObject"]["data"]
     assert len(results) == 1
     assert results[0]["category"] == "Food"
 
@@ -129,7 +129,7 @@ def test_list_expenses_filter_by_date_range(client):
 
     resp = client.get("/expenses?from_date=2026-09-01&to_date=2026-09-30", headers=API_KEY_HEADERS)
     assert resp.status_code == 200
-    results = resp.json()
+    results = resp.json()["responseObject"]["data"]
     assert len(results) == 1
     assert results[0]["amount"] == "20.00"
 
@@ -141,12 +141,26 @@ def test_list_expenses_invalid_date_range(client):
 
 
 def test_missing_api_key_rejected(client):
-    """Requests without X-API-Key must be rejected with 401."""
-    resp = client.get("/expenses")
-    assert resp.status_code == 401
+    """Requests without auth must be rejected with 401."""
+    from app.main import app
+    from app.dependencies import get_current_user
+    saved = app.dependency_overrides.pop(get_current_user, None)
+    try:
+        resp = client.get("/expenses")
+        assert resp.status_code in (401, 403)
+    finally:
+        if saved:
+            app.dependency_overrides[get_current_user] = saved
 
 
 def test_wrong_api_key_rejected(client):
-    """Requests with wrong X-API-Key must be rejected with 401."""
-    resp = client.get("/expenses", headers={"X-API-Key": "wrong-key"})
-    assert resp.status_code == 401
+    """Requests with wrong auth must be rejected with 401."""
+    from app.main import app
+    from app.dependencies import get_current_user
+    saved = app.dependency_overrides.pop(get_current_user, None)
+    try:
+        resp = client.get("/expenses", headers={"Authorization": "Bearer invalid-token"})
+        assert resp.status_code in (401, 403)
+    finally:
+        if saved:
+            app.dependency_overrides[get_current_user] = saved
